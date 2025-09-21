@@ -1,10 +1,10 @@
 let flashcards = [];
 let currentIndex = 0;
-let seenIndices = [];    // full history of shown card indices
-let historyPointer = 0;  // current position in history
+let seenIndices = []; // Tracks the order of cards shown
 
 function showCard() {
   if (flashcards.length === 0) return;
+
   const card = flashcards[currentIndex];
   const showFirst = document.getElementById("showFirstSelect").value;
   const showAnswer = document.getElementById("showAnswerToggle").checked;
@@ -28,40 +28,39 @@ function showCard() {
     (showPinyin && (showFirst === "chinese" || showAnswer)) ? pinyin : "";
 }
 
+// Next button logic
 function nextCard() {
   if (flashcards.length === 0) return;
 
   const randomMode = document.getElementById("randomToggle").checked;
 
-  if (historyPointer < seenIndices.length - 1) {
-    // Move forward in history
-    historyPointer++;
-    currentIndex = seenIndices[historyPointer];
-  } else {
-    // At end of history: pick new card
-    if (randomMode) {
-      const unseen = flashcards.map((_, i) => i).filter(i => !seenIndices.includes(i));
-      if (unseen.length === 0) {
-        // All seen, allow repeats
-        currentIndex = Math.floor(Math.random() * flashcards.length);
-      } else {
-        const randIndex = unseen[Math.floor(Math.random() * unseen.length)];
-        currentIndex = randIndex;
-      }
-    } else {
-      currentIndex = (currentIndex + 1) % flashcards.length;
+  if (randomMode) {
+    // Pick an unseen word first
+    const unseen = flashcards.map((_, i) => i).filter(i => !seenIndices.includes(i));
+    if (unseen.length === 0) {
+      // All words seen, reset the unseen pool
+      seenIndices = [];
+      nextCard(); // call recursively to pick from full set
+      return;
     }
-    // Add to history
+    const randIndex = unseen[Math.floor(Math.random() * unseen.length)];
+    currentIndex = randIndex;
     seenIndices.push(currentIndex);
-    historyPointer = seenIndices.length - 1;
+  } else {
+    // Sequential mode
+    currentIndex = (currentIndex + 1) % flashcards.length;
+    if (!seenIndices.includes(currentIndex)) seenIndices.push(currentIndex);
   }
 
   showCard();
 }
 
+// Previous button logic (always sequential in seen order)
 function prevCard() {
-  if (historyPointer <= 0) return; // can't go back further
-  historyPointer--;
-  currentIndex = seenIndices[historyPointer];
+  if (seenIndices.length <= 1) return; // no previous
+  // Remove current index
+  seenIndices.pop();
+  // Go back to the last seen
+  currentIndex = seenIndices[seenIndices.length - 1];
   showCard();
 }
