@@ -28,7 +28,7 @@
       font-size: 20px;
       color: #444;
       margin-top: 5px;
-      white-space: pre-line; /* ensures it's always on its own line */
+      white-space: pre-line; /* ensures pinyin is always on its own line */
     }
     button, select, label {
       margin: 5px;
@@ -65,7 +65,7 @@
       Show first:
       <select id="showFirstSelect">
         <option value="english">English</option>
-        <option value="chinese" selected>Chinese</option> <!-- default now Chinese -->
+        <option value="chinese" selected>Chinese</option>
       </select>
     </label>
   </div>
@@ -80,7 +80,6 @@
   <div id="footer"></div>
 
   <script>
-    // 👉 Replace with your published Google Sheets CSV URL
     const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-XXXX/pub?output=csv";
     const cacheKey = "flashcards-cache-v1";
 
@@ -91,17 +90,24 @@
       document.getElementById("status").textContent = message;
     }
 
-    function setFooter() {
+    function setFooter(fetchTimeMs = null) {
       const footer = document.getElementById("footer");
-      footer.textContent = flashcards.length > 0 
-        ? `Total vocabulary terms: ${flashcards.length}` 
-        : "";
+      if (flashcards.length > 0) {
+        let msg = `Total vocabulary terms: ${flashcards.length}`;
+        if (fetchTimeMs !== null) msg += ` (fetch: ${fetchTimeMs} ms)`;
+        footer.textContent = msg;
+      } else {
+        footer.textContent = "";
+      }
     }
 
     async function fetchCSV() {
+      const startTime = performance.now();
       const res = await fetch(sheetUrl);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const text = await res.text();
-      return parseCSV(text);
+      const duration = Math.round(performance.now() - startTime);
+      return {data: parseCSV(text), duration};
     }
 
     function parseCSV(text) {
@@ -111,7 +117,6 @@
       return dataRows.map(row => {
         let obj = {};
         headers.forEach((h, i) => obj[h.trim().toLowerCase()] = row[i]?.trim());
-        // strip parentheses from pinyin if present
         if (obj.pinyin) {
           obj.pinyin = obj.pinyin.replace(/^\(|\)$/g, "").trim();
         }
@@ -140,15 +145,23 @@
 
     async function reloadData() {
       try {
-        flashcards = await fetchCSV();
+        setStatus("Fetching data...");
+        const {data, duration} = await fetchCSV();
+        flashcards = data;
         localStorage.setItem(cacheKey, JSON.stringify(flashcards));
         currentIndex = 0;
         showCard();
         setStatus("Fetched fresh from Google Sheets");
-        setFooter();
+        setFooter(duration);
       } catch (err) {
-        setStatus("❌ Failed to load data (check sheet URL)");
         console.error(err);
+        setStatus("❌ Failed to fetch data (blocked or network error)");
+        flashcards = [];
+        currentIndex = 0;
+        document.getElementById("question").textContent = "Error loading flashcards";
+        document.getElementById("answer").textContent = "";
+        document.getElementById("pinyin").textContent = "";
+        setFooter();
       }
     }
 
@@ -206,7 +219,6 @@
     document.getElementById("showFirstSelect").addEventListener("change", showCard);
     document.getElementById("showPinyinToggle").addEventListener("change", showCard);
 
-    // Load data (try cache first)
     loadData(true);
   </script>
 </body>
