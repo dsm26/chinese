@@ -2,50 +2,69 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- important for mobile -->
   <title>Flashcards</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      padding: 20px;
+      padding: 15px;
+      margin: 0;
+      background-color: #f8f8f8;
+    }
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    #controls button, #controls select, #controls label {
+      margin: 5px;
+      font-size: 16px;
     }
     #card {
+      background: #fff;
       border: 2px solid #333;
-      border-radius: 8px;
-      padding: 40px;
-      margin: 20px auto;
-      width: 400px;
-      min-height: 150px;
+      border-radius: 12px;
+      padding: 30px;
+      margin: 0 auto 20px auto;
+      max-width: 90%;
+      min-height: 180px;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     .word {
-      font-size: 28px;
-      margin: 10px 0;
+      font-size: 32px;
+      margin: 12px 0;
+      word-break: break-word;
     }
     .pinyin {
-      font-size: 20px;
+      font-size: 24px;
       color: #444;
-      margin-top: 5px;
+      margin-top: 8px;
       white-space: pre-line;
     }
-    button, select, label {
-      margin: 5px;
-    }
     #status {
-      margin-top: 15px;
-      font-size: 14px;
+      margin-top: 10px;
+      font-size: 16px;
       color: #555;
     }
     #footer {
-      margin-top: 20px;
-      font-size: 14px;
+      margin-top: 15px;
+      font-size: 16px;
       color: #666;
     }
     #source-link {
       margin-top: 5px;
-      font-size: 14px;
+      font-size: 16px;
+    }
+    @media (max-width: 480px) {
+      .word { font-size: 28px; }
+      .pinyin { font-size: 20px; }
+      #controls button, #controls select, #controls label { font-size: 14px; }
+      #card { padding: 25px; min-height: 160px; }
     }
   </style>
 </head>
@@ -87,7 +106,6 @@
   </div>
 
   <script>
-    // Updated CSV link
     const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRCDpSuFzdccJJsBrxvG5x9YxkQnVrT4O9N6-Ac4N50l3K0mKrfRn36R2xndR9twPyBQVr8IoEW6vDf/pub?gid=0&single=true&output=csv";
     const cacheKey = "flashcards-cache-v1";
 
@@ -109,7 +127,6 @@
       }
     }
 
-    // Set the CSV link
     document.getElementById("csvLink").href = sheetUrl;
 
     async function fetchCSV() {
