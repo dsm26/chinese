@@ -62,7 +62,7 @@
     }
 
     #toggles {
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
@@ -70,6 +70,11 @@
 
     #toggles label {
       margin: 5px 15px;
+      font-size: 16px;
+    }
+
+    #jump-menu {
+      margin-bottom: 15px;
       font-size: 16px;
     }
 
@@ -87,11 +92,6 @@
 
     #source-link {
       margin-top: 5px;
-      font-size: 16px;
-    }
-
-    #jump-menu {
-      margin-top: 10px;
       font-size: 16px;
     }
 
@@ -143,15 +143,16 @@
     </label>
   </div>
 
+  <!-- Jump to dropdown directly below toggles -->
+  <div id="jump-menu" style="display:none;">
+    <label for="jumpSelect">Jump to: </label>
+    <select id="jumpSelect"></select>
+  </div>
+
   <div id="status"></div>
   <div id="footer"></div>
   <div id="source-link">
     <a id="csvLink" href="" target="_blank">View source CSV published from Google Sheets</a>
-  </div>
-
-  <div id="jump-menu" style="display:none;">
-    <label for="jumpSelect">Jump to: </label>
-    <select id="jumpSelect"></select>
   </div>
 
   <script>
