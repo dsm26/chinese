@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- important for mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flashcards</title>
   <style>
     body {
@@ -12,22 +12,24 @@
       margin: 0;
       background-color: #f8f8f8;
     }
+
     #controls {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
     #controls button, #controls select, #controls label {
       margin: 5px;
       font-size: 16px;
     }
+
     #card {
       background: #fff;
       border: 2px solid #333;
       border-radius: 12px;
-      padding: 30px;
-      margin: 0 auto 20px auto;
+      padding: 35px;
+      margin: 0 auto 15px auto;
       max-width: 90%;
       min-height: 180px;
       display: flex;
@@ -35,55 +37,71 @@
       justify-content: center;
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
+
     .word {
-      font-size: 32px;
+      font-size: 38px;
       margin: 12px 0;
       word-break: break-word;
     }
+
     .pinyin {
-      font-size: 24px;
+      font-size: 26px;
       color: #444;
       margin-top: 8px;
       white-space: pre-line;
     }
+
+    #nav-buttons {
+      margin: 10px 0;
+    }
+
+    #nav-buttons button {
+      font-size: 18px;
+      padding: 10px 20px;
+      margin: 0 10px;
+    }
+
+    #toggles {
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    #toggles label {
+      margin: 5px 15px;
+      font-size: 16px;
+    }
+
     #status {
       margin-top: 10px;
       font-size: 16px;
       color: #555;
     }
+
     #footer {
       margin-top: 15px;
       font-size: 16px;
       color: #666;
     }
+
     #source-link {
       margin-top: 5px;
       font-size: 16px;
     }
+
     @media (max-width: 480px) {
-      .word { font-size: 28px; }
-      .pinyin { font-size: 20px; }
-      #controls button, #controls select, #controls label { font-size: 14px; }
-      #card { padding: 25px; min-height: 160px; }
+      .word { font-size: 32px; }
+      .pinyin { font-size: 22px; }
+      #nav-buttons button { font-size: 16px; padding: 8px 16px; }
+      #toggles label { font-size: 14px; margin: 5px 10px; }
     }
   </style>
 </head>
 <body>
   <h1>Flashcards</h1>
+
   <div id="controls">
-    <button onclick="prevCard()">Previous</button>
-    <button onclick="nextCard()">Next</button>
-    <button onclick="reloadData()">Reload Data</button>
-    <button onclick="clearCache()">Clear Cache</button>
-    <label>
-      <input type="checkbox" id="randomToggle"> Random
-    </label>
-    <label>
-      <input type="checkbox" id="showAnswerToggle" checked> Show Answer
-    </label>
-    <label>
-      <input type="checkbox" id="showPinyinToggle" checked> Show Pinyin
-    </label>
     <label>
       Show first:
       <select id="showFirstSelect">
@@ -91,12 +109,33 @@
         <option value="chinese" selected>Chinese</option>
       </select>
     </label>
+    <button onclick="reloadData()">Reload Data</button>
+    <button onclick="clearCache()">Clear Cache</button>
+    <label>
+      <input type="checkbox" id="randomToggle"> Random
+    </label>
   </div>
 
   <div id="card">
     <div id="question" class="word"></div>
     <div id="answer" class="word" style="color: gray;"></div>
     <div id="pinyin" class="pinyin"></div>
+  </div>
+
+  <!-- Navigation buttons below the flashcard -->
+  <div id="nav-buttons">
+    <button onclick="prevCard()">Previous</button>
+    <button onclick="nextCard()">Next</button>
+  </div>
+
+  <!-- Toggles below navigation -->
+  <div id="toggles">
+    <label>
+      <input type="checkbox" id="showAnswerToggle" checked> Show Answer
+    </label>
+    <label>
+      <input type="checkbox" id="showPinyinToggle" checked> Show Pinyin
+    </label>
   </div>
 
   <div id="status"></div>
