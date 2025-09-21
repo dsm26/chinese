@@ -1,292 +1,173 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Flashcards</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 15px;
-      margin: 0;
-      background-color: #f8f8f8;
+<script>
+  const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRCDpSuFzdccJJsBrxvG5x9YxkQnVrT4O9N6-Ac4N50l3K0mKrfRn36R2xndR9twPyBQVr8IoEW6vDf/pub?gid=0&single=true&output=csv";
+  const cacheKey = "flashcards-cache-v1";
+
+  let flashcards = [];
+  let currentIndex = 0;
+
+  // New memory variables
+  let seenIndices = [];
+  let historyPointer = -1;
+
+  function setStatus(message) {
+    document.getElementById("status").textContent = message;
+  }
+
+  function setFooter(fetchTimeMs = null) {
+    const footer = document.getElementById("footer");
+    if (flashcards.length > 0) {
+      let msg = `Total vocabulary terms: ${flashcards.length}`;
+      if (fetchTimeMs !== null) msg += ` (fetch: ${fetchTimeMs} ms)`;
+      footer.textContent = msg;
+    } else {
+      footer.textContent = "";
     }
+  }
 
-    #controls {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 15px;
-    }
-    #controls button, #controls select, #controls label {
-      margin: 5px;
-      font-size: 16px;
-    }
+  document.getElementById("csvLink").href = sheetUrl;
 
-    #card {
-      background: #fff;
-      border: 2px solid #333;
-      border-radius: 12px;
-      padding: 35px;
-      margin: 0 auto 15px auto;
-      max-width: 90%;
-      min-height: 180px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
+  async function fetchCSV() {
+    const startTime = performance.now();
+    const res = await fetch(sheetUrl);
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const text = await res.text();
+    const duration = Math.round(performance.now() - startTime);
+    return {data: parseCSV(text), duration};
+  }
 
-    .word {
-      font-size: 38px;
-      margin: 12px 0;
-      word-break: break-word;
-    }
-
-    .pinyin {
-      font-size: 26px;
-      color: #444;
-      margin-top: 8px;
-      white-space: pre-line;
-    }
-
-    #nav-buttons {
-      margin: 10px 0;
-    }
-
-    #nav-buttons button {
-      font-size: 18px;
-      padding: 10px 20px;
-      margin: 0 10px;
-    }
-
-    #toggles {
-      margin-bottom: 15px;
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    #toggles label {
-      margin: 5px 15px;
-      font-size: 16px;
-    }
-
-    #status {
-      margin-top: 10px;
-      font-size: 16px;
-      color: #555;
-    }
-
-    #footer {
-      margin-top: 15px;
-      font-size: 16px;
-      color: #666;
-    }
-
-    #source-link {
-      margin-top: 5px;
-      font-size: 16px;
-    }
-
-    @media (max-width: 480px) {
-      .word { font-size: 32px; }
-      .pinyin { font-size: 22px; }
-      #nav-buttons button { font-size: 16px; padding: 8px 16px; }
-      #toggles label { font-size: 14px; margin: 5px 10px; }
-    }
-  </style>
-</head>
-<body>
-  <h1>Flashcards</h1>
-
-  <div id="controls">
-    <label>
-      Show first:
-      <select id="showFirstSelect">
-        <option value="english">English</option>
-        <option value="chinese" selected>Chinese</option>
-      </select>
-    </label>
-    <button onclick="reloadData()">Reload Data</button>
-    <button onclick="clearCache()">Clear Cache</button>
-    <label>
-      <input type="checkbox" id="randomToggle"> Random
-    </label>
-  </div>
-
-  <div id="card">
-    <div id="question" class="word"></div>
-    <div id="answer" class="word" style="color: gray;"></div>
-    <div id="pinyin" class="pinyin"></div>
-  </div>
-
-  <!-- Navigation buttons below the flashcard -->
-  <div id="nav-buttons">
-    <button onclick="prevCard()">Previous</button>
-    <button onclick="nextCard()">Next</button>
-  </div>
-
-  <!-- Toggles below navigation -->
-  <div id="toggles">
-    <label>
-      <input type="checkbox" id="showAnswerToggle" checked> Show Answer
-    </label>
-    <label>
-      <input type="checkbox" id="showPinyinToggle" checked> Show Pinyin
-    </label>
-  </div>
-
-  <div id="status"></div>
-  <div id="footer"></div>
-  <div id="source-link">
-    <a id="csvLink" href="" target="_blank">View source CSV published from Google Sheets</a>
-  </div>
-
-  <script>
-    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRCDpSuFzdccJJsBrxvG5x9YxkQnVrT4O9N6-Ac4N50l3K0mKrfRn36R2xndR9twPyBQVr8IoEW6vDf/pub?gid=0&single=true&output=csv";
-    const cacheKey = "flashcards-cache-v1";
-
-    let flashcards = [];
-    let currentIndex = 0;
-
-    function setStatus(message) {
-      document.getElementById("status").textContent = message;
-    }
-
-    function setFooter(fetchTimeMs = null) {
-      const footer = document.getElementById("footer");
-      if (flashcards.length > 0) {
-        let msg = `Total vocabulary terms: ${flashcards.length}`;
-        if (fetchTimeMs !== null) msg += ` (fetch: ${fetchTimeMs} ms)`;
-        footer.textContent = msg;
-      } else {
-        footer.textContent = "";
+  function parseCSV(text) {
+    const rows = text.trim().split("\n").map(r => r.split(","));
+    const headers = rows[0];
+    const dataRows = rows.slice(1);
+    return dataRows.map(row => {
+      let obj = {};
+      headers.forEach((h, i) => obj[h.trim().toLowerCase()] = row[i]?.trim());
+      if (obj.pinyin) {
+        obj.pinyin = obj.pinyin.replace(/^\(|\)$/g, "").trim();
       }
-    }
+      return obj;
+    });
+  }
 
-    document.getElementById("csvLink").href = sheetUrl;
-
-    async function fetchCSV() {
-      const startTime = performance.now();
-      const res = await fetch(sheetUrl);
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      const text = await res.text();
-      const duration = Math.round(performance.now() - startTime);
-      return {data: parseCSV(text), duration};
-    }
-
-    function parseCSV(text) {
-      const rows = text.trim().split("\n").map(r => r.split(","));
-      const headers = rows[0];
-      const dataRows = rows.slice(1);
-      return dataRows.map(row => {
-        let obj = {};
-        headers.forEach((h, i) => obj[h.trim().toLowerCase()] = row[i]?.trim());
-        if (obj.pinyin) {
-          obj.pinyin = obj.pinyin.replace(/^\(|\)$/g, "").trim();
-        }
-        return obj;
-      });
-    }
-
-    async function loadData(fromCache = true) {
-      if (fromCache) {
-        let cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          try {
-            flashcards = JSON.parse(cached);
-            currentIndex = 0;
-            showCard();
-            setStatus("Loaded from cache");
-            setFooter();
-            return;
-          } catch (e) {
-            console.warn("Cache parse failed:", e);
-          }
+  async function loadData(fromCache = true) {
+    if (fromCache) {
+      let cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          flashcards = JSON.parse(cached);
+          resetHistory();
+          showCard();
+          setStatus("Loaded from cache");
+          setFooter();
+          return;
+        } catch (e) {
+          console.warn("Cache parse failed:", e);
         }
       }
-      await reloadData();
     }
+    await reloadData();
+  }
 
-    async function reloadData() {
-      try {
-        setStatus("Fetching data...");
-        const {data, duration} = await fetchCSV();
-        flashcards = data;
-        localStorage.setItem(cacheKey, JSON.stringify(flashcards));
-        currentIndex = 0;
-        showCard();
-        setStatus("Fetched fresh from Google Sheets");
-        setFooter(duration);
-      } catch (err) {
-        console.error(err);
-        setStatus("❌ Failed to fetch data (blocked or network error)");
-        flashcards = [];
-        currentIndex = 0;
-        document.getElementById("question").textContent = "Error loading flashcards";
-        document.getElementById("answer").textContent = "";
-        document.getElementById("pinyin").textContent = "";
-        setFooter();
-      }
-    }
-
-    function clearCache() {
-      localStorage.removeItem(cacheKey);
-      setStatus("Cache cleared — reload to fetch fresh data");
+  async function reloadData() {
+    try {
+      setStatus("Fetching data...");
+      const {data, duration} = await fetchCSV();
+      flashcards = data;
+      localStorage.setItem(cacheKey, JSON.stringify(flashcards));
+      resetHistory();
+      showCard();
+      setStatus("Fetched fresh from Google Sheets");
+      setFooter(duration);
+    } catch (err) {
+      console.error(err);
+      setStatus("❌ Failed to fetch data (blocked or network error)");
+      flashcards = [];
+      resetHistory();
+      document.getElementById("question").textContent = "Error loading flashcards";
+      document.getElementById("answer").textContent = "";
+      document.getElementById("pinyin").textContent = "";
       setFooter();
     }
+  }
 
-    function showCard() {
-      if (flashcards.length === 0) return;
+  function clearCache() {
+    localStorage.removeItem(cacheKey);
+    setStatus("Cache cleared — reload to fetch fresh data");
+    setFooter();
+  }
 
-      const card = flashcards[currentIndex];
-      const showFirst = document.getElementById("showFirstSelect").value;
-      const showAnswer = document.getElementById("showAnswerToggle").checked;
-      const showPinyin = document.getElementById("showPinyinToggle").checked;
+  function resetHistory() {
+    currentIndex = 0;
+    seenIndices = [currentIndex];
+    historyPointer = 0;
+  }
 
-      let question = "", answer = "", pinyin = "";
+  function showCard() {
+    if (flashcards.length === 0) return;
 
-      if (showFirst === "english") {
-        question = card.english;
-        answer = card.chinese;
-        pinyin = card.pinyin;
-      } else {
-        question = card.chinese;
-        pinyin = card.pinyin;
-        answer = card.english;
-      }
+    const card = flashcards[currentIndex];
+    const showFirst = document.getElementById("showFirstSelect").value;
+    const showAnswer = document.getElementById("showAnswerToggle").checked;
+    const showPinyin = document.getElementById("showPinyinToggle").checked;
 
-      document.getElementById("question").textContent = question;
-      document.getElementById("answer").textContent = showAnswer ? answer : "";
-      document.getElementById("pinyin").textContent =
-        (showPinyin && (showFirst === "chinese" || showAnswer)) ? pinyin : "";
+    let question = "", answer = "", pinyin = "";
+
+    if (showFirst === "english") {
+      question = card.english;
+      answer = card.chinese;
+      pinyin = card.pinyin;
+    } else {
+      question = card.chinese;
+      pinyin = card.pinyin;
+      answer = card.english;
     }
 
-    function nextCard() {
-      if (document.getElementById("randomToggle").checked) {
-        currentIndex = Math.floor(Math.random() * flashcards.length);
+    document.getElementById("question").textContent = question;
+    document.getElementById("answer").textContent = showAnswer ? answer : "";
+    document.getElementById("pinyin").textContent =
+      (showPinyin && (showFirst === "chinese" || showAnswer)) ? pinyin : "";
+  }
+
+  function nextCard() {
+    if (flashcards.length === 0) return;
+
+    const randomMode = document.getElementById("randomToggle").checked;
+
+    if (historyPointer < seenIndices.length - 1) {
+      // Move forward through history
+      historyPointer++;
+      currentIndex = seenIndices[historyPointer];
+    } else {
+      // Pick a new card
+      if (randomMode) {
+        let unseen = flashcards.map((_, i) => i).filter(i => !seenIndices.includes(i));
+        if (unseen.length === 0) {
+          // all seen, allow repeats
+          currentIndex = Math.floor(Math.random() * flashcards.length);
+        } else {
+          currentIndex = unseen[Math.floor(Math.random() * unseen.length)];
+        }
       } else {
         currentIndex = (currentIndex + 1) % flashcards.length;
       }
+      seenIndices.push(currentIndex);
+      historyPointer = seenIndices.length - 1;
+    }
+    showCard();
+  }
+
+  function prevCard() {
+    if (flashcards.length === 0) return;
+    if (historyPointer > 0) {
+      historyPointer--;
+      currentIndex = seenIndices[historyPointer];
       showCard();
     }
+  }
 
-    function prevCard() {
-      if (document.getElementById("randomToggle").checked) {
-        currentIndex = Math.floor(Math.random() * flashcards.length);
-      } else {
-        currentIndex = (currentIndex - 1 + flashcards.length) % flashcards.length;
-      }
-      showCard();
-    }
+  document.getElementById("showAnswerToggle").addEventListener("change", showCard);
+  document.getElementById("showFirstSelect").addEventListener("change", showCard);
+  document.getElementById("showPinyinToggle").addEventListener("change", showCard);
 
-    document.getElementById("showAnswerToggle").addEventListener("change", showCard);
-    document.getElementById("showFirstSelect").addEventListener("change", showCard);
-    document.getElementById("showPinyinToggle").addEventListener("change", showCard);
-
-    loadData(true);
-  </script>
-</body>
-</html>
+  loadData(true);
+</script>
