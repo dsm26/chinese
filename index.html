@@ -28,7 +28,7 @@
       font-size: 20px;
       color: #444;
       margin-top: 5px;
-      white-space: pre-line; /* ensures pinyin is always on its own line */
+      white-space: pre-line;
     }
     button, select, label {
       margin: 5px;
@@ -42,6 +42,10 @@
       margin-top: 20px;
       font-size: 14px;
       color: #666;
+    }
+    #source-link {
+      margin-top: 5px;
+      font-size: 14px;
     }
   </style>
 </head>
@@ -78,8 +82,12 @@
 
   <div id="status"></div>
   <div id="footer"></div>
+  <div id="source-link">
+    <a id="csvLink" href="" target="_blank">View source CSV published from Google Sheets</a>
+  </div>
 
   <script>
+    // Updated CSV link
     const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRCDpSuFzdccJJsBrxvG5x9YxkQnVrT4O9N6-Ac4N50l3K0mKrfRn36R2xndR9twPyBQVr8IoEW6vDf/pub?gid=0&single=true&output=csv";
     const cacheKey = "flashcards-cache-v1";
 
@@ -100,6 +108,9 @@
         footer.textContent = "";
       }
     }
+
+    // Set the CSV link
+    document.getElementById("csvLink").href = sheetUrl;
 
     async function fetchCSV() {
       const startTime = performance.now();
