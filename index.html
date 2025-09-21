@@ -28,6 +28,7 @@
       font-size: 20px;
       color: #444;
       margin-top: 5px;
+      white-space: pre-line; /* ensures it's always on its own line */
     }
     button, select, label {
       margin: 5px;
@@ -64,7 +65,7 @@
       Show first:
       <select id="showFirstSelect">
         <option value="english">English</option>
-        <option value="chinese">Chinese</option>
+        <option value="chinese" selected>Chinese</option> <!-- default now Chinese -->
       </select>
     </label>
   </div>
@@ -91,8 +92,10 @@
     }
 
     function setFooter() {
-      document.getElementById("footer").textContent =
-        flashcards.length > 0 ? `Total vocabulary terms: ${flashcards.length}` : "";
+      const footer = document.getElementById("footer");
+      footer.textContent = flashcards.length > 0 
+        ? `Total vocabulary terms: ${flashcards.length}` 
+        : "";
     }
 
     async function fetchCSV() {
@@ -108,6 +111,10 @@
       return dataRows.map(row => {
         let obj = {};
         headers.forEach((h, i) => obj[h.trim().toLowerCase()] = row[i]?.trim());
+        // strip parentheses from pinyin if present
+        if (obj.pinyin) {
+          obj.pinyin = obj.pinyin.replace(/^\(|\)$/g, "").trim();
+        }
         return obj;
       });
     }
