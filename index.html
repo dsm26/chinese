@@ -71,4 +71,136 @@
 
   <div id="card">
     <div id="question" class="word"></div>
-    <di
+    <div id="answer" class="word" style="color: gray;"></div>
+    <div id="pinyin" class="pinyin"></div>
+  </div>
+
+  <div id="status"></div>
+  <div id="footer"></div>
+
+  <script>
+    // 👉 Replace with your published Google Sheets CSV URL
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-XXXX/pub?output=csv";
+    const cacheKey = "flashcards-cache-v1";
+
+    let flashcards = [];
+    let currentIndex = 0;
+
+    function setStatus(message) {
+      document.getElementById("status").textContent = message;
+    }
+
+    function setFooter() {
+      document.getElementById("footer").textContent =
+        flashcards.length > 0 ? `Total vocabulary terms: ${flashcards.length}` : "";
+    }
+
+    async function fetchCSV() {
+      const res = await fetch(sheetUrl);
+      const text = await res.text();
+      return parseCSV(text);
+    }
+
+    function parseCSV(text) {
+      const rows = text.trim().split("\n").map(r => r.split(","));
+      const headers = rows[0];
+      const dataRows = rows.slice(1);
+      return dataRows.map(row => {
+        let obj = {};
+        headers.forEach((h, i) => obj[h.trim().toLowerCase()] = row[i]?.trim());
+        return obj;
+      });
+    }
+
+    async function loadData(fromCache = true) {
+      if (fromCache) {
+        let cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            flashcards = JSON.parse(cached);
+            currentIndex = 0;
+            showCard();
+            setStatus("Loaded from cache");
+            setFooter();
+            return;
+          } catch (e) {
+            console.warn("Cache parse failed:", e);
+          }
+        }
+      }
+      await reloadData();
+    }
+
+    async function reloadData() {
+      try {
+        flashcards = await fetchCSV();
+        localStorage.setItem(cacheKey, JSON.stringify(flashcards));
+        currentIndex = 0;
+        showCard();
+        setStatus("Fetched fresh from Google Sheets");
+        setFooter();
+      } catch (err) {
+        setStatus("❌ Failed to load data (check sheet URL)");
+        console.error(err);
+      }
+    }
+
+    function clearCache() {
+      localStorage.removeItem(cacheKey);
+      setStatus("Cache cleared — reload to fetch fresh data");
+      setFooter();
+    }
+
+    function showCard() {
+      if (flashcards.length === 0) return;
+
+      const card = flashcards[currentIndex];
+      const showFirst = document.getElementById("showFirstSelect").value;
+      const showAnswer = document.getElementById("showAnswerToggle").checked;
+      const showPinyin = document.getElementById("showPinyinToggle").checked;
+
+      let question = "", answer = "", pinyin = "";
+
+      if (showFirst === "english") {
+        question = card.english;
+        answer = card.chinese;
+        pinyin = card.pinyin;
+      } else {
+        question = card.chinese;
+        pinyin = card.pinyin;
+        answer = card.english;
+      }
+
+      document.getElementById("question").textContent = question;
+      document.getElementById("answer").textContent = showAnswer ? answer : "";
+      document.getElementById("pinyin").textContent =
+        (showPinyin && (showFirst === "chinese" || showAnswer)) ? pinyin : "";
+    }
+
+    function nextCard() {
+      if (document.getElementById("randomToggle").checked) {
+        currentIndex = Math.floor(Math.random() * flashcards.length);
+      } else {
+        currentIndex = (currentIndex + 1) % flashcards.length;
+      }
+      showCard();
+    }
+
+    function prevCard() {
+      if (document.getElementById("randomToggle").checked) {
+        currentIndex = Math.floor(Math.random() * flashcards.length);
+      } else {
+        currentIndex = (currentIndex - 1 + flashcards.length) % flashcards.length;
+      }
+      showCard();
+    }
+
+    document.getElementById("showAnswerToggle").addEventListener("change", showCard);
+    document.getElementById("showFirstSelect").addEventListener("change", showCard);
+    document.getElementById("showPinyinToggle").addEventListener("change", showCard);
+
+    // Load data (try cache first)
+    loadData(true);
+  </script>
+</body>
+</html>
