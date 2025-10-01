@@ -12,19 +12,16 @@
       margin: 0;
       background-color: #f8f8f8;
     }
-
     #controls, #toggles {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       margin-bottom: 15px;
     }
-
     #controls button, #controls select, #controls label {
       margin: 5px;
       font-size: 16px;
     }
-
     #card {
       background: #fff;
       border: 2px solid #333;
@@ -38,62 +35,49 @@
       justify-content: center;
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
-
     .word {
       font-size: 38px;
       margin: 12px 0;
       word-break: break-word;
     }
-
     .pinyin {
       font-size: 26px;
       color: #444;
       margin-top: 8px;
       white-space: pre-line;
     }
-
     #nav-buttons {
       margin: 10px 0;
     }
-
     #nav-buttons button {
       font-size: 18px;
       padding: 10px 20px;
       margin: 0 10px;
     }
-
     #toggles label {
       margin: 5px 15px;
       font-size: 16px;
     }
-
     #jump-container {
       margin: 10px 0;
     }
-
     #status, #footer, #source-link {
       margin-top: 10px;
       font-size: 16px;
       color: #555;
     }
-
     @media (max-width: 480px) {
       .word { font-size: 32px; }
       .pinyin { font-size: 22px; }
-      #nav-buttons button {
-        font-size: 16px;
-        padding: 8px 16px;
-      }
-      #toggles label {
-        font-size: 14px;
-        margin: 5px 10px;
-      }
+      #nav-buttons button { font-size: 16px; padding: 8px 16px; }
+      #toggles label { font-size: 14px; margin: 5px 10px; }
     }
   </style>
 </head>
 <body>
   <h1>Flashcards</h1>
 
+  <!-- Category dropdown at the very top -->
   <div id="controls">
     <select id="categorySelect"></select>
     <label>
@@ -176,12 +160,18 @@
 
     function parseCSV(text) {
       const rows = text.trim().split("\n").map(r => r.split(","));
-      const headers = rows[0];
+      const headers = rows[0].map(h => h.trim().toLowerCase());
       const dataRows = rows.slice(1);
+
       return dataRows.map(row => {
         const obj = {};
-        headers.forEach((h, i) => obj[h.trim().toLowerCase()] = row[i]?.trim());
-        if (obj.pinyin) obj.pinyin = obj.pinyin.replace(/^\(|\)$/g, "").trim();
+        // Map headers
+        headers.forEach((h,i) => obj[h] = row[i]?.trim() || "");
+        // Normalize
+        obj.category = obj.category || row[0]?.trim() || "Uncategorized";
+        obj.english = obj.english || row[1]?.trim() || "";
+        obj.chinese = obj.chinese || row[2]?.trim() || "";
+        obj.pinyin  = (obj.pinyin || row[3]?.trim() || "").replace(/^\(|\)$/g,"").trim();
         return obj;
       });
     }
@@ -241,66 +231,61 @@
       const showAnswer = document.getElementById("showAnswerToggle").checked;
       const showPinyin = document.getElementById("showPinyinToggle").checked;
 
-      let question = "", answer = "", pinyin = "";
-      if (showFirst === "english") {
-        question = card.english;
-        answer = card.chinese;
-        pinyin = card.pinyin;
+      let question="", answer="", pinyin="";
+      if (showFirst==="english") {
+        question=card.english;
+        answer=card.chinese;
+        pinyin=card.pinyin;
       } else {
-        question = card.chinese;
-        pinyin = card.pinyin;
-        answer = card.english;
+        question=card.chinese;
+        pinyin=card.pinyin;
+        answer=card.english;
       }
 
       document.getElementById("question").textContent = question;
       document.getElementById("answer").textContent = showAnswer ? answer : "";
-      document.getElementById("pinyin").textContent =
-        (showPinyin && (showFirst === "chinese" || showAnswer)) ? pinyin : "";
+      document.getElementById("pinyin").textContent = (showPinyin && (showFirst==="chinese" || showAnswer)) ? pinyin : "";
     }
 
     function getFilteredCards() {
       const cat = document.getElementById("categorySelect").value;
-      return cat === "All Categories"
-        ? flashcards
-        : flashcards.filter(c => c.category === cat);
+      return cat==="All Categories" ? flashcards : flashcards.filter(c=>c.category===cat);
     }
 
     function nextCard() {
-      if (historyIndex < history.length - 1) {
+      if(historyIndex < history.length-1) {
         historyIndex++;
         showCard();
       } else {
         const pool = getFilteredCards();
-        if (pool.length === 0) return;
+        if(pool.length===0) return;
         const random = document.getElementById("randomToggle").checked;
-        const nextCard = random
-          ? pool[Math.floor(Math.random() * pool.length)]
-          : pool[(history.length) % pool.length];
-        history.push(nextCard);
+        const next = random ? pool[Math.floor(Math.random()*pool.length)] : pool[history.length % pool.length];
+        history.push(next);
         historyIndex++;
         showCard();
       }
     }
 
     function prevCard() {
-      if (historyIndex > 0) {
+      if(historyIndex>0) {
         historyIndex--;
         showCard();
       }
     }
 
     function jumpToCard() {
-      const jumpIndex = parseInt(document.getElementById("jumpSelect").value, 10);
-      if (!isNaN(jumpIndex)) {
-        historyIndex = jumpIndex;
+      const idx = parseInt(document.getElementById("jumpSelect").value,10);
+      if(!isNaN(idx)) {
+        historyIndex = idx;
         showCard();
       }
     }
 
     function initCategorySelect() {
       const select = document.getElementById("categorySelect");
-      const categories = Array.from(new Set(flashcards.map(c => c.category)));
-      select.innerHTML = `<option>All Categories</option>` + categories.map(c => `<option>${c}</option>`).join("");
+      const categories = Array.from(new Set(flashcards.map(c=>c.category))).sort();
+      select.innerHTML = `<option>All Categories</option>` + categories.map(c=>`<option>${c}</option>`).join("");
       select.onchange = () => setStatus(`Category: ${select.value}`);
     }
 
