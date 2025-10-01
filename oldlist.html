@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flashcards</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 15px;
+      margin: 0;
+      background-color: #f8f8f8;
+    }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+    #controls button, #controls select, #controls label {
+      margin: 5px;
+      font-size: 16px;
+    }
+
+    #card {
+      background: #fff;
+      border: 2px solid #333;
+      border-radius: 12px;
+      padding: 35px;
+      margin: 0 auto 15px auto;
+      max-width: 90%;
+      min-height: 180px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .word {
+      font-size: 38px;
+      margin: 12px 0;
+      word-break: break-word;
+    }
+
+    .pinyin {
+      font-size: 26px;
+      color: #444;
+      margin-top: 8px;
+      white-space: pre-line;
+    }
+
+    #nav-buttons {
+      margin: 10px 0;
+    }
+
+    #nav-buttons button {
+      font-size: 18px;
+      padding: 10px 20px;
+      margin: 0 10px;
+    }
+
+    #toggles {
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    #toggles label {
+      margin: 5px 15px;
+      font-size: 16px;
+    }
+
+    #jump {
+      margin-bottom: 15px;
+    }
+
+    #status {
+      margin-top: 10px;
+      font-size: 16px;
+      color: #555;
+    }
+
+    #footer {
+      margin-top: 15px;
+      font-size: 16px;
+      color: #666;
+    }
+
+    #source-link {
+      margin-top: 5px;
+      font-size: 16px;
+    }
+
+    @media (max-width: 480px) {
+      .word { font-size: 32px; }
+      .pinyin { font-size: 22px; }
+      #nav-buttons button { font-size: 16px; padding: 8px 16px; }
+      #toggles label { font-size: 14px; margin: 5px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Flashcards</h1>
+
+  <div id="controls">
+    <!-- New category selector (no label) -->
+    <select id="categorySelect">
+      <option value="all" selected>All Categories</option>
+    </select>
+
+    <label>
+      Show first:
+      <select id="showFirstSelect">
+        <option value="english">English</option>
+        <option value="chinese" selected>Chinese</option>
+      </select>
+    </label>
+    <button onclick="reloadData()">Reload Data</button>
+    <button onclick="clearCache()">Clear Cache</button>
+    <label>
+      <input type="checkbox" id="randomToggle"> Random
+    </label>
+  </div>
+
+  <div id="card">
+    <div id="question" class="word"></div>
+    <div id="answer" class="word" style="color: gray;"></div>
+    <div id="pinyin" class="pinyin"></div>
+  </div>
+
+  <!-- Navigation buttons below the flashcard -->
+  <div id="nav-buttons">
+    <button onclick="prevCard()">Previous</button>
+    <button onclick="nextCard()">Next</button>
+  </div>
+
+  <!-- Toggles below navigation -->
+  <div id="toggles">
+    <label>
+      <input type="checkbox" id="showAnswerToggle" checked> Show Answer
+    </label>
+    <label>
+      <input type="checkbox" id="showPinyinToggle" checked> Show Pinyin
+    </label>
+  </div>
+
+  <!-- Jump dropdown -->
+  <div id="jump">
+    <label>
+      Jump to:
+      <select id="jumpSelect"></select>
+    </label>
+  </div>
+
+  <div id="status"></div>
+  <div id="footer"></div>
+  <div id="source-link">
+    <a id="csvLink" href="" target="_blank">View source CSV published from Google Sheets</a>
+  </div>
+
+  <script>
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRCDpSuFzdccJJsBrxvG5x9YxkQnVrT4O9N6-Ac4N50l3K0mKrfRn36R2xndR9twPyBQVr8IoEW6vDf/pub?gid=1683466738&single=true&output=csv";
+    const cacheKey = "flashcards-cache-v2";
+
+    let flashcards = [];
+    let history = [];
+    let historyIndex = -1;
+
+    function setStatus(message) {
+      document.getElementById("status").textContent = message;
+    }
+
+    function setFooter(fetchTimeMs = null) {
+      const footer = document.getElementById("footer");
+      if (flashcards.length > 0) {
+        let msg = `Total vocabulary terms: ${flashcards.length}`;
+        if (fetchTimeMs !== null) msg += ` (fetch: ${fetchTimeMs} ms)`;
+        footer.textContent = msg;
+      } else {
+        footer.textContent = "";
+      }
+    }
+
+    document.getElementById("csvLink").href = sheetUrl;
+
+    async function fetchCSV() {
+      const startTime = performance.now();
+      const res = await fetch(sheetUrl);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const text = await res.text();
+      const duration = Math.round(performance.now() - startTime);
+      return {data: parseCSV(text), duration};
+    }
+
+    function parseCSV(text) {
+      const rows = text.trim().split("\n").map(r => r.split(","));
+      const headers = rows[0];
+      const dataRows = rows.slice(1);
+      return dataRows.map(row => {
+        return {
+          category: row[0]?.trim(),
+          english: row[1]?.trim(),
+          chinese: row[2]?.trim(),
+          pinyin: row[3]?.trim().replace(/^\(|\)$/g, "")
+        };
+      });
+    }
+
+    function populateCategories() {
+      const select = document.getElementById("categorySelect");
+      select.innerHTML = `<option value="all" selected>All Categories</option>`;
+      const cats = [...new Set(flashcards.map(c => c.category).filter(c => c))];
+      cats.forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+      });
+    }
+
+    function populateJump() {
+      const jumpSelect = document.getElementById("jumpSelect");
+      jumpSelect.innerHTML = "";
+      for (let i = 0; i < flashcards.length; i += 10) {
+        const opt = document.createElement("option");
+        opt.value = i;
+        opt.textContent = `Card ${i+1}`;
+        jumpSelect.appendChild(opt);
+      }
+      jumpSelect.addEventListener("change", e => {
+        history.push(parseInt(e.target.value));
+        historyIndex = history.length - 1;
+        showCard();
+      });
+    }
+
+    async function loadData(fromCache = true) {
+      if (fromCache) {
+        let cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            flashcards = JSON.parse(cached);
+            history = [0];
+            historyIndex = 0;
+            showCard();
+            setStatus("Loaded from cache");
+            setFooter();
+            populateCategories();
+            populateJump();
+            return;
+          } catch (e) {
+            console.warn("Cache parse failed:", e);
+          }
+        }
+      }
+      await reloadData();
+    }
+
+    async function reloadData() {
+      try {
+        setStatus("Fetching data...");
+        const {data, duration} = await fetchCSV();
+        flashcards = data;
+        localStorage.setItem(cacheKey, JSON.stringify(flashcards));
+        history = [0];
+        historyIndex = 0;
+        showCard();
+        setStatus("Fetched fresh from Google Sheets");
+        setFooter(duration);
+        populateCategories();
+        populateJump();
+      } catch (err) {
+        console.error(err);
+        setStatus("❌ Failed to fetch data (blocked or network error)");
+        flashcards = [];
+        history = [];
+        historyIndex = -1;
+        document.getElementById("question").textContent = "Error loading flashcards";
+        document.getElementById("answer").textContent = "";
+        document.getElementById("pinyin").textContent = "";
+        setFooter();
+      }
+    }
+
+    function clearCache() {
+      localStorage.removeItem(cacheKey);
+      setStatus("Cache cleared — reload to fetch fresh data");
+      setFooter();
+    }
+
+    function currentCard() {
+      return flashcards[history[historyIndex]];
+    }
+
+    function showCard() {
+      if (flashcards.length === 0 || historyIndex < 0) return;
+
+      const card = currentCard();
+      const showFirst = document.getElementById("showFirstSelect").value;
+      const showAnswer = document.getElementById("showAnswerToggle").checked;
+      const showPinyin = document.getElementById("showPinyinToggle").checked;
+
+      let question = "", answer = "", pinyin = "";
+
+      if (showFirst === "english") {
+        question = card.english;
+        answer = card.chinese;
+        pinyin = card.pinyin;
+      } else {
+        question = card.chinese;
+        pinyin = card.pinyin;
+        answer = card.english;
+      }
+
+      document.getElementById("question").textContent = question;
+      document.getElementById("answer").textContent = showAnswer ? answer : "";
+      document.getElementById("pinyin").textContent =
+        (showPinyin && (showFirst === "chinese" || showAnswer)) ? pinyin : "";
+    }
+
+    function nextCard() {
+      if (historyIndex < history.length - 1) {
+        historyIndex++;
+      } else {
+        const category = document.getElementById("categorySelect").value;
+        const pool = category === "all" ? flashcards : flashcards.filter(c => c.category === category);
+        if (pool.length === 0) return;
+
+        let idx;
+        if (document.getElementById("randomToggle").checked) {
+          const randomCard = pool[Math.floor(Math.random() * pool.length)];
+          idx = flashcards.indexOf(randomCard);
+        } else {
+          idx = (history[historyIndex] + 1) % flashcards.length;
+        }
+
+        history.push(idx);
+        historyIndex++;
+      }
+      showCard();
+    }
+
+    function prevCard() {
+      if (historyIndex > 0) {
+        historyIndex--;
+        showCard();
+      }
+    }
+
+    document.getElementById("showAnswerToggle").addEventListener("change", showCard);
+    document.getElementById("showFirstSelect").addEventListener("change", showCard);
+    document.getElementById("showPinyinToggle").addEventListener("change", showCard);
+    document.getElementById("categorySelect").addEventListener("change", () => {
+      setStatus(`Category: ${document.getElementById("categorySelect").value}`);
+    });
+
+    loadData(true);
+  </script>
+</body>
+</html>
